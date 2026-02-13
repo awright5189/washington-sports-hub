@@ -1,188 +1,681 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Washington Sports Hub</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-body {
-    font-family: -apple-system, BlinkMacSystemFont, Arial;
-    margin: 0;
-    background: #f4f6f8;
-}
+  :root{
+    --bg:#0b1220;
+    --panel:#0f1b33;
+    --card:#101f3d;
+    --soft:#162a52;
+    --text:#e9eefc;
+    --muted:#a9b7dd;
+    --accent:#79a6ff;
+    --border:rgba(255,255,255,.08);
+    --shadow:0 12px 30px rgba(0,0,0,.25);
+    --radius:16px;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,Inter,Segoe UI,Arial,sans-serif;
+    background: radial-gradient(1200px 700px at 20% -10%, rgba(121,166,255,.20), transparent 55%),
+                radial-gradient(900px 600px at 90% 0%, rgba(90,240,200,.10), transparent 55%),
+                var(--bg);
+    color:var(--text);
+  }
+  header{
+    position:sticky; top:0; z-index:20;
+    background: linear-gradient(180deg, rgba(11,18,32,.92), rgba(11,18,32,.75));
+    backdrop-filter: blur(10px);
+    border-bottom:1px solid var(--border);
+  }
+  .topbar{
+    max-width:1100px;
+    margin:0 auto;
+    padding:18px 16px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .brand{
+    display:flex; flex-direction:column;
+    gap:4px;
+  }
+  .brand h1{
+    margin:0;
+    font-size:20px;
+    letter-spacing:.2px;
+  }
+  .brand .sub{
+    color:var(--muted);
+    font-size:13px;
+  }
+  .pill{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:8px 10px;
+    border:1px solid var(--border);
+    border-radius:999px;
+    color:var(--muted);
+    font-size:13px;
+  }
 
-header {
-    background: #0c2340;
-    color: white;
-    padding: 20px;
-    font-size: 26px;
-    font-weight: bold;
-}
+  .wrap{
+    max-width:1100px;
+    margin:0 auto;
+    padding:18px 16px 34px;
+    display:grid;
+    grid-template-columns: 320px 1fr;
+    gap:16px;
+  }
+  @media (max-width: 920px){
+    .wrap{ grid-template-columns: 1fr; }
+  }
 
-.container {
-    padding: 20px;
-    max-width: 900px;
-    margin: auto;
-}
+  .panel{
+    background: linear-gradient(180deg, rgba(15,27,51,.95), rgba(15,27,51,.70));
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow: var(--shadow);
+    overflow:hidden;
+  }
+  .panel .hd{
+    padding:14px 14px 10px;
+    border-bottom:1px solid var(--border);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .panel .hd .title{
+    font-size:14px;
+    color:var(--muted);
+    letter-spacing:.2px;
+    text-transform:uppercase;
+  }
+  .search{
+    width:100%;
+    padding:10px 12px;
+    border-radius:12px;
+    border:1px solid var(--border);
+    background: rgba(0,0,0,.18);
+    color:var(--text);
+    outline:none;
+    font-size:14px;
+  }
 
-.team {
-    background: white;
-    padding: 16px;
-    margin-bottom: 12px;
-    border-radius: 10px;
-    cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0,0,0,.1);
-    font-size: 18px;
-}
+  .teamList{ padding:10px; display:flex; flex-direction:column; gap:10px; }
+  .teamBtn{
+    width:100%;
+    border:1px solid var(--border);
+    background: rgba(0,0,0,.12);
+    color:var(--text);
+    padding:12px 12px;
+    border-radius:14px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    transition: transform .06s ease, background .15s ease, border-color .15s ease;
+  }
+  .teamBtn:hover{ transform: translateY(-1px); background: rgba(121,166,255,.08); border-color: rgba(121,166,255,.25); }
+  .teamBtn.active{ background: rgba(121,166,255,.14); border-color: rgba(121,166,255,.35); }
+  .teamLeft{ display:flex; flex-direction:column; gap:4px; text-align:left; }
+  .teamName{ font-weight:700; font-size:15px; }
+  .teamMeta{ color:var(--muted); font-size:12px; }
 
-.team:hover {
-    background: #eef3f8;
-}
+  .content{
+    padding:16px;
+  }
 
-.section {
-    background: white;
-    padding: 20px;
-    margin-top: 15px;
-    border-radius: 10px;
-}
+  .hero{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:14px;
+    border:1px solid var(--border);
+    border-radius: var(--radius);
+    background: rgba(0,0,0,.12);
+    margin-bottom:14px;
+  }
+  .logo{
+    width:56px; height:56px;
+    border-radius:14px;
+    border:1px solid var(--border);
+    background: rgba(0,0,0,.18);
+    display:flex;
+    align-items:center; justify-content:center;
+    overflow:hidden;
+    flex:0 0 auto;
+  }
+  .logo img{ width:100%; height:100%; object-fit:contain; padding:8px; }
+  .heroMain{ display:flex; flex-direction:column; gap:4px; min-width:0; }
+  .heroMain .name{ font-size:20px; font-weight:800; margin:0; }
+  .heroMain .desc{ color:var(--muted); font-size:13px; }
+  .heroRight{
+    margin-left:auto;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+  .stat{
+    border:1px solid var(--border);
+    background: rgba(0,0,0,.10);
+    border-radius:14px;
+    padding:10px 12px;
+    min-width:120px;
+  }
+  .stat .k{ color:var(--muted); font-size:12px; }
+  .stat .v{ font-size:14px; font-weight:700; margin-top:4px; }
 
-button {
-    padding: 10px 16px;
-    margin-bottom: 15px;
-    cursor: pointer;
-    font-size: 16px;
-}
+  .tabs{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-bottom:12px;
+  }
+  .tab{
+    border:1px solid var(--border);
+    background: rgba(0,0,0,.12);
+    color:var(--text);
+    padding:10px 12px;
+    border-radius:999px;
+    cursor:pointer;
+    font-size:13px;
+  }
+  .tab.active{
+    border-color: rgba(121,166,255,.45);
+    background: rgba(121,166,255,.15);
+  }
 
-.game {
-    padding: 6px 0;
-}
+  .grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:12px;
+  }
+  @media (max-width: 920px){
+    .grid{ grid-template-columns:1fr; }
+  }
 
-.player {
-    padding: 4px 0;
-    font-size: 14px;
-}
+  .card{
+    border:1px solid var(--border);
+    background: rgba(0,0,0,.12);
+    border-radius: var(--radius);
+    padding:14px;
+    overflow:hidden;
+  }
+  .card h3{
+    margin:0 0 10px 0;
+    font-size:14px;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:.25px;
+  }
+
+  .row{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    padding:10px 0;
+    border-bottom:1px solid rgba(255,255,255,.06);
+  }
+  .row:last-child{ border-bottom:none; padding-bottom:0; }
+  .row .left{ min-width:0; }
+  .row .a{ font-weight:700; }
+  .row .b{ color:var(--muted); font-size:12px; margin-top:3px; }
+  .row .right{
+    text-align:right;
+    color:var(--muted);
+    font-size:12px;
+    white-space:nowrap;
+  }
+  .score{
+    color:var(--text);
+    font-weight:800;
+    font-size:13px;
+  }
+
+  .smallNote{
+    color:var(--muted);
+    font-size:12px;
+    line-height:1.4;
+  }
+
+  .skeleton{
+    border-radius:12px;
+    background: linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,.12), rgba(255,255,255,.06));
+    background-size: 200% 100%;
+    animation: shimmer 1.2s infinite;
+    height:14px;
+    margin:10px 0;
+  }
+  @keyframes shimmer{
+    0%{ background-position: 200% 0; }
+    100%{ background-position: -200% 0; }
+  }
+
+  .listCompact .row{ padding:8px 0; }
+  .badge{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:6px 10px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    background: rgba(0,0,0,.10);
+    color:var(--muted);
+    font-size:12px;
+  }
+  a{ color:var(--accent); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
 </style>
 </head>
 
 <body>
+<header>
+  <div class="topbar">
+    <div class="brand">
+      <h1>Washington Sports Hub</h1>
+      <div class="sub">Iteration 2 (web, laptop) • Live schedule/results/roster</div>
+    </div>
+    <div class="pill" id="statusPill">● Ready</div>
+  </div>
+</header>
 
-<header>Washington Sports Hub</header>
+<div class="wrap">
+  <!-- LEFT: Team menu -->
+  <div class="panel">
+    <div class="hd">
+      <div class="title">DC Area Teams</div>
+    </div>
+    <div style="padding:10px;">
+      <input class="search" id="teamSearch" placeholder="Search teams…" />
+    </div>
+    <div class="teamList" id="teamList"></div>
+    <div style="padding:12px 14px 16px; border-top:1px solid var(--border);" class="smallNote">
+      Data: TheSportsDB (public endpoints). If a league’s schedule/roster is unavailable, you’ll see a clean “no data” message instead of wrong teams.
+    </div>
+  </div>
 
-<div class="container" id="menu">
+  <!-- RIGHT: Team view -->
+  <div class="panel">
+    <div class="content">
+      <div class="hero" id="hero">
+        <div class="logo" id="logoBox">🏛️</div>
+        <div class="heroMain">
+          <div class="name" id="heroName">Select a team</div>
+          <div class="desc" id="heroDesc">Schedule • Results • Roster</div>
+        </div>
+        <div class="heroRight">
+          <div class="stat">
+            <div class="k">League</div>
+            <div class="v" id="heroLeague">—</div>
+          </div>
+          <div class="stat">
+            <div class="k">Location</div>
+            <div class="v">Washington, DC</div>
+          </div>
+        </div>
+      </div>
 
-<div class="team" onclick="openTeam(134937)">🏈 Washington Commanders</div>
-<div class="team" onclick="openTeam(134884)">🏀 Washington Wizards</div>
-<div class="team" onclick="openTeam(134845)">🏒 Washington Capitals</div>
-<div class="team" onclick="openTeam(135281)">⚾ Washington Nationals</div>
-<div class="team" onclick="openTeam(134145)">⚽ DC United</div>
+      <div class="tabs" id="tabs" style="display:none;">
+        <button class="tab active" data-tab="overview">Overview</button>
+        <button class="tab" data-tab="schedule">Upcoming</button>
+        <button class="tab" data-tab="results">Recent</button>
+        <button class="tab" data-tab="roster">Roster</button>
+      </div>
 
-</div>
-
-<div class="container" id="teamView" style="display:none">
-
-<button onclick="goBack()">← Back</button>
-
-<h2 id="teamName"></h2>
-
-<div class="section">
-<h3>Upcoming Games</h3>
-<div id="schedule">Loading...</div>
-</div>
-
-<div class="section">
-<h3>Recent Results</h3>
-<div id="results">Loading...</div>
-</div>
-
-<div class="section">
-<h3>Roster</h3>
-<div id="roster">Loading...</div>
-</div>
-
+      <div id="view"></div>
+    </div>
+  </div>
 </div>
 
 <script>
+  // Use name-based resolution (NO hardcoded team IDs).
+  // This prevents "Arsenal" showing up due to wrong IDs and lets us verify/force correct team matches.
+  const API_BASE = "https://www.thesportsdb.com/api/v1/json/3";
 
-function goBack(){
-    document.getElementById("teamView").style.display="none";
-    document.getElementById("menu").style.display="block";
-}
+  const TEAMS = [
+    { key:"commanders", label:"🏈 Washington Commanders", query:"Washington Commanders", leagueHint:"NFL" },
+    { key:"wizards",     label:"🏀 Washington Wizards",     query:"Washington Wizards",     leagueHint:"NBA" },
+    { key:"capitals",    label:"🏒 Washington Capitals",    query:"Washington Capitals",    leagueHint:"NHL" },
+    { key:"nationals",   label:"⚾ Washington Nationals",   query:"Washington Nationals",   leagueHint:"MLB" },
+    { key:"dcunited",    label:"⚽ DC United",              query:"DC United",              leagueHint:"MLS" }
+  ];
 
-async function openTeam(teamId){
+  const el = (id)=>document.getElementById(id);
+  const statusPill = el("statusPill");
+  const teamList = el("teamList");
+  const teamSearch = el("teamSearch");
+  const heroName = el("heroName");
+  const heroDesc = el("heroDesc");
+  const heroLeague = el("heroLeague");
+  const logoBox = el("logoBox");
+  const tabs = el("tabs");
+  const view = el("view");
 
-    document.getElementById("menu").style.display="none";
-    document.getElementById("teamView").style.display="block";
+  let selected = null; // { key, query, leagueHint, teamName, idTeam, badge, logoUrl }
 
-    loadTeamInfo(teamId);
-    loadSchedule(teamId);
-    loadResults(teamId);
-    loadRoster(teamId);
-}
+  function setStatus(text, good=true){
+    statusPill.textContent = "● " + text;
+    statusPill.style.color = good ? "var(--muted)" : "#ffb4b4";
+    statusPill.style.borderColor = good ? "var(--border)" : "rgba(255,180,180,.35)";
+  }
 
-async function loadTeamInfo(teamId){
+  function renderTeamMenu(filter=""){
+    teamList.innerHTML = "";
+    const f = filter.trim().toLowerCase();
+    TEAMS
+      .filter(t => !f || t.label.toLowerCase().includes(f) || t.query.toLowerCase().includes(f))
+      .forEach(t => {
+        const btn = document.createElement("button");
+        btn.className = "teamBtn" + (selected?.key === t.key ? " active" : "");
+        btn.innerHTML = `
+          <div class="teamLeft">
+            <div class="teamName">${t.label}</div>
+            <div class="teamMeta">${t.leagueHint}</div>
+          </div>
+          <div class="badge">Open</div>
+        `;
+        btn.onclick = ()=> selectTeam(t);
+        teamList.appendChild(btn);
+      });
+  }
 
-    let res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookupteam.php?id=${teamId}`);
-    let data = await res.json();
+  teamSearch.addEventListener("input", (e)=> renderTeamMenu(e.target.value));
 
-    document.getElementById("teamName").innerText = data.teams[0].strTeam;
-}
+  async function fetchJson(url){
+    const res = await fetch(url, { cache: "no-store" });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    return res.json();
+  }
 
-async function loadSchedule(teamId){
+  function skeletonCard(title){
+    return `
+      <div class="card">
+        <h3>${title}</h3>
+        <div class="skeleton" style="width:80%"></div>
+        <div class="skeleton" style="width:55%"></div>
+        <div class="skeleton" style="width:70%"></div>
+        <div class="skeleton" style="width:60%"></div>
+      </div>
+    `;
+  }
 
-    let res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventsnext.php?id=${teamId}`);
-    let data = await res.json();
+  function escapeHtml(str){
+    return (str ?? "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
 
-    if(!data.events){
-        document.getElementById("schedule").innerText="No upcoming games found.";
+  // Hard guard: only show games that actually include the selected official team name.
+  function filterEventsToTeam(events, teamName){
+    const tn = (teamName || "").toLowerCase();
+    return (events || []).filter(e => {
+      const h = (e.strHomeTeam || "").toLowerCase();
+      const a = (e.strAwayTeam || "").toLowerCase();
+      return h === tn || a === tn || (e.strEvent || "").toLowerCase().includes(tn);
+    });
+  }
+
+  async function resolveTeamByName(teamQuery){
+    // 1) search by name
+    const data = await fetchJson(`${API_BASE}/searchteams.php?t=${encodeURIComponent(teamQuery)}`);
+    const teams = data.teams || [];
+
+    // Prefer exact match if present
+    const exact = teams.find(t => (t.strTeam || "").toLowerCase() === teamQuery.toLowerCase());
+    const pick = exact || teams[0];
+
+    if(!pick) return null;
+
+    return {
+      idTeam: pick.idTeam,
+      teamName: pick.strTeam,
+      leagueName: pick.strLeague || "",
+      badge: pick.strTeamBadge || "",
+      logo: pick.strTeamLogo || pick.strTeamBadge || ""
+    };
+  }
+
+  function renderHero(team){
+    heroName.textContent = team?.teamName || "Select a team";
+    heroLeague.textContent = team?.leagueName || team?.leagueHint || "—";
+    heroDesc.textContent = team ? "Schedule • Results • Roster" : "Schedule • Results • Roster";
+
+    if(team?.logo){
+      logoBox.innerHTML = `<img src="${escapeHtml(team.logo)}" alt="logo">`;
+    } else {
+      logoBox.textContent = "🏛️";
+    }
+  }
+
+  function renderTabs(){
+    tabs.style.display = selected ? "flex" : "none";
+    [...tabs.querySelectorAll(".tab")].forEach(t => {
+      t.classList.toggle("active", t.dataset.tab === "overview");
+    });
+  }
+
+  tabs.addEventListener("click", (e)=>{
+    const btn = e.target.closest(".tab");
+    if(!btn || !selected) return;
+    [...tabs.querySelectorAll(".tab")].forEach(t => t.classList.remove("active"));
+    btn.classList.add("active");
+    renderTab(btn.dataset.tab);
+  });
+
+  function setViewHtml(html){ view.innerHTML = html; }
+
+  async function selectTeam(t){
+    selected = { ...t };
+    renderTeamMenu(teamSearch.value);
+    renderTabs();
+    setStatus("Loading…", true);
+
+    // optimistic UI
+    renderHero({ teamName: t.query, leagueName: t.leagueHint, logo:"" });
+    setViewHtml(`
+      <div class="grid">
+        ${skeletonCard("Upcoming")}
+        ${skeletonCard("Recent Results")}
+      </div>
+      <div style="margin-top:12px;">
+        ${skeletonCard("Roster")}
+      </div>
+    `);
+
+    try{
+      const resolved = await resolveTeamByName(t.query);
+      if(!resolved){
+        setStatus("Team not found", false);
+        renderHero({ teamName: t.query, leagueName: t.leagueHint });
+        setViewHtml(`<div class="card"><h3>Error</h3><div class="smallNote">Could not resolve this team from the API. Try again later.</div></div>`);
         return;
+      }
+
+      selected = { ...selected, ...resolved };
+      renderHero(selected);
+      setStatus("Loaded", true);
+
+      // default tab: overview
+      renderTab("overview");
+
+    } catch(err){
+      console.error(err);
+      setStatus("API blocked or down", false);
+      setViewHtml(`<div class="card"><h3>Error</h3><div class="smallNote">Couldn’t load data right now. Refresh and try again.</div></div>`);
+    }
+  }
+
+  async function loadUpcoming(){
+    const data = await fetchJson(`${API_BASE}/eventsnext.php?id=${encodeURIComponent(selected.idTeam)}`);
+    const filtered = filterEventsToTeam(data.events, selected.teamName);
+
+    if(!filtered.length){
+      return `<div class="smallNote">No upcoming games found for ${escapeHtml(selected.teamName)} (or the league hasn’t published upcoming events here).</div>`;
     }
 
-    let html="";
-    data.events.slice(0,5).forEach(event=>{
-        html+=`<div class="game">${event.strEvent} — ${event.dateEvent}</div>`;
-    });
+    const items = filtered.slice(0, 6).map(e=>{
+      const date = e.dateEvent || "—";
+      const time = e.strTime || "";
+      const evt = e.strEvent || `${e.strHomeTeam} vs ${e.strAwayTeam}`;
+      return `
+        <div class="row">
+          <div class="left">
+            <div class="a">${escapeHtml(evt)}</div>
+            <div class="b">${escapeHtml(date)} ${time ? "• " + escapeHtml(time) : ""}</div>
+          </div>
+          <div class="right">${escapeHtml(e.strLeague || selected.leagueName || "")}</div>
+        </div>
+      `;
+    }).join("");
 
-    document.getElementById("schedule").innerHTML=html;
-}
+    return `<div class="listCompact">${items}</div>`;
+  }
 
-async function loadResults(teamId){
+  async function loadResults(){
+    const data = await fetchJson(`${API_BASE}/eventslast.php?id=${encodeURIComponent(selected.idTeam)}`);
+    const filtered = filterEventsToTeam(data.results, selected.teamName);
 
-    let res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventslast.php?id=${teamId}`);
-    let data = await res.json();
-
-    if(!data.results){
-        document.getElementById("results").innerText="No recent results.";
-        return;
+    if(!filtered.length){
+      return `<div class="smallNote">No recent results found for ${escapeHtml(selected.teamName)}.</div>`;
     }
 
-    let html="";
-    data.results.slice(0,5).forEach(game=>{
-        html+=`<div class="game">${game.strEvent} — ${game.intHomeScore} : ${game.intAwayScore}</div>`;
-    });
+    const items = filtered.slice(0, 6).map(g=>{
+      const date = g.dateEvent || "—";
+      const evt = g.strEvent || `${g.strHomeTeam} vs ${g.strAwayTeam}`;
+      const hs = g.intHomeScore ?? "—";
+      const as = g.intAwayScore ?? "—";
+      return `
+        <div class="row">
+          <div class="left">
+            <div class="a">${escapeHtml(evt)}</div>
+            <div class="b">${escapeHtml(date)}</div>
+          </div>
+          <div class="right">
+            <div class="score">${escapeHtml(String(hs))} : ${escapeHtml(String(as))}</div>
+            <div>${escapeHtml(g.strLeague || selected.leagueName || "")}</div>
+          </div>
+        </div>
+      `;
+    }).join("");
 
-    document.getElementById("results").innerHTML=html;
-}
+    return `<div class="listCompact">${items}</div>`;
+  }
 
-async function loadRoster(teamId){
+  async function loadRoster(){
+    const data = await fetchJson(`${API_BASE}/lookup_all_players.php?id=${encodeURIComponent(selected.idTeam)}`);
+    const players = data.player || [];
 
-    let res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookup_all_players.php?id=${teamId}`);
-    let data = await res.json();
-
-    if(!data.player){
-        document.getElementById("roster").innerText="Roster unavailable.";
-        return;
+    if(!players.length){
+      return `<div class="smallNote">Roster unavailable for ${escapeHtml(selected.teamName)} in this data source.</div>`;
     }
 
-    let html="";
-    data.player.slice(0,25).forEach(player=>{
-        html+=`<div class="player">${player.strPlayer} (${player.strPosition || "—"})</div>`;
-    });
+    // Sort: keep a stable, readable roster list
+    const items = players
+      .slice(0, 40)
+      .map(p=>{
+        const name = p.strPlayer || "—";
+        const pos = p.strPosition || "—";
+        const number = p.strNumber ? `#${p.strNumber}` : "";
+        return `
+          <div class="row">
+            <div class="left">
+              <div class="a">${escapeHtml(name)} ${number ? `<span class="badge">${escapeHtml(number)}</span>` : ""}</div>
+              <div class="b">${escapeHtml(pos)}</div>
+            </div>
+            <div class="right">${escapeHtml(p.strNationality || "")}</div>
+          </div>
+        `;
+      }).join("");
 
-    document.getElementById("roster").innerHTML=html;
-}
+    return `<div class="listCompact">${items}</div>`;
+  }
 
+  async function renderTab(tab){
+    if(!selected) return;
+
+    setStatus("Loading…", true);
+
+    if(tab === "overview"){
+      setViewHtml(`
+        <div class="grid">
+          <div class="card">
+            <h3>Upcoming</h3>
+            <div id="upcomingBox">${skeletonCard(" ")}</div>
+          </div>
+          <div class="card">
+            <h3>Recent Results</h3>
+            <div id="resultsBox">${skeletonCard(" ")}</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;" class="card">
+          <h3>Roster</h3>
+          <div id="rosterBox">${skeletonCard(" ")}</div>
+        </div>
+      `);
+
+      try{
+        const [u, r, ro] = await Promise.all([loadUpcoming(), loadResults(), loadRoster()]);
+        document.getElementById("upcomingBox").innerHTML = u;
+        document.getElementById("resultsBox").innerHTML = r;
+        document.getElementById("rosterBox").innerHTML = ro;
+        setStatus("Loaded", true);
+      } catch(e){
+        console.error(e);
+        setStatus("API error", false);
+        setViewHtml(`<div class="card"><h3>Error</h3><div class="smallNote">Couldn’t load data. Refresh and try again.</div></div>`);
+      }
+      return;
+    }
+
+    // Single-tab views
+    setViewHtml(`
+      <div class="card">
+        <h3>${tab === "schedule" ? "Upcoming" : tab === "results" ? "Recent Results" : "Roster"}</h3>
+        <div id="singleBox">
+          <div class="skeleton" style="width:80%"></div>
+          <div class="skeleton" style="width:60%"></div>
+          <div class="skeleton" style="width:70%"></div>
+          <div class="skeleton" style="width:55%"></div>
+        </div>
+      </div>
+    `);
+
+    try{
+      let html = "";
+      if(tab === "schedule") html = await loadUpcoming();
+      if(tab === "results") html = await loadResults();
+      if(tab === "roster") html = await loadRoster();
+      document.getElementById("singleBox").innerHTML = html;
+      setStatus("Loaded", true);
+    } catch(e){
+      console.error(e);
+      setStatus("API error", false);
+      setViewHtml(`<div class="card"><h3>Error</h3><div class="smallNote">Couldn’t load data. Refresh and try again.</div></div>`);
+    }
+  }
+
+  // Initial render
+  renderTeamMenu();
+  setViewHtml(`
+    <div class="card">
+      <h3>Welcome</h3>
+      <div class="smallNote">
+        Click a DC team on the left. This version is designed to avoid “wrong team” schedules by resolving team IDs by name and filtering events to match the selected team.
+      </div>
+    </div>
+  `);
 </script>
-
 </body>
 </html>
