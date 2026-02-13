@@ -6,58 +6,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-body {
-    font-family: -apple-system, BlinkMacSystemFont, Arial;
-    margin: 0;
-    background: #f4f6f8;
-}
-
-header {
-    background: #0c2340;
-    color: white;
-    padding: 20px;
-    font-size: 26px;
-    font-weight: bold;
-}
-
-.container {
-    padding: 20px;
-}
-
-.team-card {
-    background: white;
-    padding: 16px;
-    margin-bottom: 12px;
-    border-radius: 10px;
-    cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0,0,0,.1);
-    font-size: 18px;
-}
-
-.team-card:hover {
-    background: #eef3f8;
-}
-
-.section {
-    background: white;
-    padding: 20px;
-    margin-top: 15px;
-    border-radius: 10px;
-}
-
-button {
-    padding: 10px 16px;
-    margin-bottom: 15px;
-    cursor: pointer;
-}
-
-.game {
-    padding: 6px 0;
-}
-
-.standing {
-    padding: 4px 0;
-}
+body { font-family: -apple-system, Arial; margin:0; background:#f4f6f8; }
+header { background:#0c2340; color:white; padding:20px; font-size:24px; }
+.container { padding:20px; }
+.team { background:white; padding:15px; margin-bottom:10px; border-radius:10px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.1); }
+.section { background:white; padding:20px; margin-top:15px; border-radius:10px; }
+button { padding:8px 14px; margin-bottom:10px; }
 </style>
 </head>
 
@@ -67,118 +21,93 @@ button {
 
 <div class="container" id="menu">
 
-<div class="team-card" onclick="openTeam('nfl','washington-commanders')">
-🏈 Washington Commanders
-</div>
-
-<div class="team-card" onclick="openTeam('nba','washington-wizards')">
-🏀 Washington Wizards
-</div>
-
-<div class="team-card" onclick="openTeam('nhl','washington-capitals')">
-🏒 Washington Capitals
-</div>
-
-<div class="team-card" onclick="openTeam('mlb','washington-nationals')">
-⚾ Washington Nationals
-</div>
-
-<div class="team-card" onclick="openTeam('mls','dc-united')">
-⚽ DC United
-</div>
+<div class="team" onclick="openTeam(134920)">🏈 Washington Commanders</div>
+<div class="team" onclick="openTeam(134880)">🏀 Washington Wizards</div>
+<div class="team" onclick="openTeam(134861)">🏒 Washington Capitals</div>
+<div class="team" onclick="openTeam(134894)">⚾ Washington Nationals</div>
+<div class="team" onclick="openTeam(133604)">⚽ DC United</div>
 
 </div>
 
 <div class="container" id="teamView" style="display:none">
 
 <button onclick="goBack()">← Back</button>
-
 <h2 id="teamName"></h2>
 
 <div class="section">
-<h3>Live & Upcoming Games</h3>
+<h3>Upcoming Games</h3>
 <div id="schedule">Loading...</div>
 </div>
 
 <div class="section">
-<h3>Standings</h3>
-<div id="standings">Loading...</div>
+<h3>Roster</h3>
+<div id="roster">Loading...</div>
 </div>
 
 </div>
 
 <script>
 
-let currentLeague = "";
-let currentTeamSlug = "";
-
 function goBack(){
-    document.getElementById("teamView").style.display="none";
-    document.getElementById("menu").style.display="block";
+document.getElementById("teamView").style.display="none";
+document.getElementById("menu").style.display="block";
 }
 
-function openTeam(league, teamSlug){
+async function openTeam(teamId){
 
-    currentLeague = league;
-    currentTeamSlug = teamSlug;
+document.getElementById("menu").style.display="none";
+document.getElementById("teamView").style.display="block";
 
-    document.getElementById("menu").style.display="none";
-    document.getElementById("teamView").style.display="block";
+loadTeamInfo(teamId);
+loadSchedule(teamId);
+loadRoster(teamId);
 
-    document.getElementById("teamName").innerText =
-        teamSlug.replaceAll("-", " ").toUpperCase();
-
-    loadSchedule();
-    loadStandings();
 }
 
-async function loadSchedule(){
+async function loadTeamInfo(teamId){
 
-    let url = `https://site.api.espn.com/apis/v2/sports/${currentLeague}/scoreboard`;
+let res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookupteam.php?id=${teamId}`);
+let data = await res.json();
+document.getElementById("teamName").innerText = data.teams[0].strTeam;
 
-    let res = await fetch(url);
-    let data = await res.json();
-
-    let games = data.events;
-
-    let html="";
-
-    games.forEach(game => {
-
-        let teams = game.name;
-        let status = game.status.type.description;
-
-        if(teams.toLowerCase().includes(currentTeamSlug.split("-")[1])){
-            html += `<div class="game">${teams} — ${status}</div>`;
-        }
-
-    });
-
-    if(html === "") html = "No games found.";
-
-    document.getElementById("schedule").innerHTML = html;
 }
 
-async function loadStandings(){
+async function loadSchedule(teamId){
 
-    let url = `https://site.api.espn.com/apis/v2/sports/${currentLeague}/standings`;
+let res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventsnext.php?id=${teamId}`);
+let data = await res.json();
 
-    let res = await fetch(url);
-    let data = await res.json();
+if(!data.events){
+document.getElementById("schedule").innerText="No upcoming games found.";
+return;
+}
 
-    let entries = data.children[0].standings.entries;
+let html="";
+data.events.slice(0,5).forEach(event=>{
+html+=`<div>${event.strEvent} — ${event.dateEvent}</div>`;
+});
 
-    let html="";
+document.getElementById("schedule").innerHTML=html;
 
-    entries.forEach(entry => {
-        if(entry.team.displayName.toLowerCase().includes(currentTeamSlug.split("-")[1])){
-            html += `<div class="standing">${entry.team.displayName}</div>`;
-        }
-    });
+}
 
-    if(html === "") html = "Standings unavailable.";
+async function loadRoster(teamId){
 
-    document.getElementById("standings").innerHTML = html;
+let res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookup_all_players.php?id=${teamId}`);
+let data = await res.json();
+
+if(!data.player){
+document.getElementById("roster").innerText="Roster unavailable.";
+return;
+}
+
+let html="";
+data.player.slice(0,20).forEach(player=>{
+html+=`<div>${player.strPlayer} (${player.strPosition || ""})</div>`;
+});
+
+document.getElementById("roster").innerHTML=html;
+
 }
 
 </script>
