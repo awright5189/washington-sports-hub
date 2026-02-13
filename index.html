@@ -189,6 +189,7 @@
     border-radius:var(--r);
     padding:14px;
     overflow:hidden;
+    margin-top:12px;
   }
   .card h3{
     margin:0 0 10px 0;
@@ -247,7 +248,7 @@
   <div class="top">
     <div class="brand">
       <h1>Washington Sports Hub</h1>
-      <div class="sub">PWA • Favorites • Live / latest / next • Standings • Roster • Injuries • News</div>
+      <div class="sub">PWA • Favorites • Game day dashboard • Live / latest / next • Standings • Roster • Injuries • News</div>
     </div>
     <div class="pill" id="pill"><span class="dot" id="dot"></span><span id="pillText">Ready</span></div>
   </div>
@@ -292,7 +293,7 @@
       </div>
 
       <div class="tabs" id="tabs" style="display:none;">
-        <button class="tab active" data-tab="overview">Overview</button>
+        <button class="tab active" data-tab="overview">Game Day</button>
         <button class="tab" data-tab="live">Live</button>
         <button class="tab" data-tab="schedule">Schedule</button>
         <button class="tab" data-tab="standings">Standings</button>
@@ -346,8 +347,8 @@
   const heroVenue = $("heroVenue");
   const logoBox = $("logoBox");
 
-  let selected = null;   // {key, league, abbr, name, ...meta}
-  let bundle = null;     // worker response
+  let selected = null;
+  let bundle = null;
   let showFavsOnly = false;
 
   // ----- State / prefs
@@ -501,7 +502,6 @@
     try { data = JSON.parse(text); }
     catch { data = { error: "Non-JSON response from Worker", raw: text }; }
 
-    // Always populate debug (so you can self-diagnose without back-and-forth)
     debugWrap.style.display = "block";
     debugPre.textContent = JSON.stringify(data, null, 2);
 
@@ -581,31 +581,104 @@
     }).join("");
   }
 
+  // --------- GAME DAY DASHBOARD OVERVIEW (updated)
   function renderOverview(){
     const meta = bundle?.meta || {};
     const { latest, next } = getLatestAndNext(bundle?.schedule || {});
     const live = getLiveGames(bundle?.scoreboard || {}, meta.teamId);
 
+    // Standings note (best-effort)
+    let standingsNote = "";
+    try{
+      const s = bundle?.standings || {};
+      const entries = s?.children?.[0]?.standings?.entries || s?.standings?.entries || s?.entries || [];
+      const me = entries.find(e => String(e?.team?.id) === String(meta.teamId));
+      const rank = me?.stats?.find(st => st.name === "rank")?.displayValue
+                || me?.stats?.find(st => st.abbreviation === "RK")?.displayValue
+                || "";
+      const gb   = me?.stats?.find(st => st.name === "gamesBehind")?.displayValue
+                || me?.stats?.find(st => st.abbreviation === "GB")?.displayValue
+                || "";
+      standingsNote = rank ? `Rank #${rank}${gb ? ` • GB ${gb}` : ""}` : "";
+    } catch {}
+
+    // Injuries count (best-effort)
+    const injuriesArr = (() => {
+      const inj = bundle?.injuries || {};
+      const items = inj?.injuries || inj?.athletes || inj?.items || inj?.entries || [];
+      return Array.isArray(items) ? items : [];
+    })();
+    const injuriesCount = injuriesArr.length;
+
+    // News top 5
+    const articles = (bundle?.news?.articles || bundle?.news?.headlines || []).slice(0,5);
+
+    const nextCountdown = next?.date ? countdownTo(next.date) : "";
+    const nextRight = next?.date ? `<span class="tag">in ${escapeHtml(nextCountdown)}</span>` : "";
+    const latestRight = latest ? `<span class="tag">${latest.completed ? "Final" : ""}</span>` : "";
+
+    const liveBlock = live.length
+      ? renderRows(live.slice(0,6), g => `<div class="score">${escapeHtml(g.hs ?? "—")} : ${escapeHtml(g.as ?? "—")}</div>`)
+      : `<div class="small">No live/today game found.</div>`;
+
+    const nextBlock = next
+      ? renderRows([next], () => ``)
+      : `<div class="small">No upcoming game found.</div>`;
+
+    const latestBlock = latest
+      ? renderRows([latest], g => `<div class="score">${escapeHtml(g.hs ?? "—")} : ${escapeHtml(g.as ?? "—")}</div>`)
+      : `<div class="small">No completed game found.</div>`;
+
+    const intelTags = `
+      <div class="btnRow">
+        <span class="tag">${escapeHtml(meta.recordSummary || "Record —")}</span>
+        <span class="tag">${escapeHtml(standingsNote || "Standings —")}</span>
+        <span class="tag">${injuriesCount ? `${injuriesCount} injuries` : `Injuries —`}</span>
+      </div>
+    `;
+
+    const newsBlock = articles.length ? articles.map(a=>{
+      const title = a?.headline || a?.title || "—";
+      const link = a?.links?.web?.href || a?.link || "";
+      const when = a?.published || a?.lastModified || "";
+      return `
+        <div class="row">
+          <div class="left">
+            <div class="a">${escapeHtml(title)}</div>
+            <div class="b">${when ? escapeHtml(fmtDate(when)) : ""}</div>
+          </div>
+          <div class="right">${link ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener">Open</a>` : ""}</div>
+        </div>
+      `;
+    }).join("") : `<div class="small">No news found.</div>`;
+
     view.innerHTML = `
+      <div class="card">
+        <h3>Key intel</h3>
+        ${intelTags}
+      </div>
+
       <div class="grid">
         <div class="card">
-          <h3>Live Now / Today <span class="tag">${live.length ? "updated" : "none"}</span></h3>
-          ${live.length
-            ? renderRows(live, g=>`<div class="score">${escapeHtml(g.hs ?? "—")} : ${escapeHtml(g.as ?? "—")}</div>`)
-            : `<div class="small">No live/today game found.</div>`}
+          <h3>Next game ${nextRight}</h3>
+          ${nextBlock}
         </div>
 
         <div class="card">
-          <h3>Most Recent Game</h3>
-          ${latest
-            ? renderRows([latest], g=>`<div class="score">${escapeHtml(g.hs ?? "—")} : ${escapeHtml(g.as ?? "—")}</div>`)
-            : `<div class="small">No completed game found.</div>`}
+          <h3>Last game ${latestRight}</h3>
+          ${latestBlock}
         </div>
       </div>
 
       <div class="card">
-        <h3>Next Game <span class="tag">${next?.date ? "in " + escapeHtml(countdownTo(next.date)) : ""}</span></h3>
-        ${next ? renderRows([next]) : `<div class="small">No upcoming game found.</div>`}
+        <h3>Live / Today</h3>
+        ${liveBlock}
+      </div>
+
+      <div class="card">
+        <h3>Top headlines <span class="tag">Top 5</span></h3>
+        ${newsBlock}
+        <div class="small" style="margin-top:10px;">For more, open the <b>News</b> tab.</div>
       </div>
     `;
   }
@@ -745,7 +818,6 @@
   }
 
   function extractInjuries(injuriesJson){
-    // injuries endpoint shapes vary; keep it defensive
     const items =
       injuriesJson?.injuries ||
       injuriesJson?.athletes ||
@@ -796,7 +868,7 @@
     view.innerHTML = `
       <div class="card">
         <h3>Top News</h3>
-        ${articles.slice(0,15).map(a=>{
+        ${articles.slice(0,25).map(a=>{
           const title = a?.headline || a?.title || "—";
           const link = a?.links?.web?.href || a?.link || "";
           const when = a?.published || a?.lastModified || "";
@@ -864,7 +936,7 @@
     renderOverview();
   }
 
-  async function selectTeam(team, force=false){
+  async function selectTeam(team){
     selected = team;
     bundle = null;
     setLastTeamKey(team.key);
@@ -905,6 +977,7 @@
           <div class="small" style="margin-top:8px;">Open Debug below to see the exact Worker response.</div>
         </div>
       `;
+      debugWrap.style.display = "block";
     }
   }
 
