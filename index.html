@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Washington Sports Hub</title>
 <style>
-  :root{ --bg:#0b1220; --panel:#0f1b33; --card:#101f3d; --soft:#162a52; --text:#e9eefc; --muted:#a9b7dd; --border:rgba(255,255,255,.10); --shadow:0 12px 30px rgba(0,0,0,.25); --r:16px; }
+  :root{ --bg:#0b1220; --panel:#0f1b33; --card:#101f3d; --text:#e9eefc; --muted:#a9b7dd; --border:rgba(255,255,255,.10); --shadow:0 12px 30px rgba(0,0,0,.25); --r:16px; }
   *{ box-sizing:border-box; }
   body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif; background:radial-gradient(1200px 700px at 20% -10%, rgba(121,166,255,.20), transparent 55%), var(--bg); color:var(--text); }
   header{ position:sticky; top:0; z-index:10; background:rgba(11,18,32,.85); backdrop-filter: blur(10px); border-bottom:1px solid var(--border); }
@@ -48,6 +48,10 @@
   .tabs{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
   .tab{ border:1px solid var(--border); background:rgba(0,0,0,.12); color:var(--text); padding:10px 12px; border-radius:999px; cursor:pointer; font-size:13px; }
   .tab.active{ background:rgba(121,166,255,.18); border-color:rgba(121,166,255,.35); }
+
+  details{ margin-top:12px; }
+  summary{ cursor:pointer; color:var(--muted); font-size:12px; }
+  pre{ white-space:pre-wrap; word-break:break-word; background:rgba(0,0,0,.18); border:1px solid var(--border); padding:12px; border-radius:14px; color:var(--text); font-size:12px; overflow:auto; }
 </style>
 </head>
 <body>
@@ -55,7 +59,7 @@
   <div class="top">
     <div class="brand">
       <h1>Washington Sports Hub</h1>
-      <div class="sub">Iteration 2 • ESPN-powered • Live scores + latest/next game + roster + news</div>
+      <div class="sub">Iteration 2 • ESPN-powered via Cloudflare Worker</div>
     </div>
     <div class="pill" id="pill">● Ready</div>
   </div>
@@ -66,7 +70,7 @@
     <div class="phead">DC Area Teams</div>
     <div class="list" id="menu"></div>
     <div style="padding:12px 14px; border-top:1px solid var(--border);" class="small">
-      If you ever see “wrong team” again, it means the upstream source is wrong — this build is designed to prevent that by using team-specific ESPN endpoints (via a Worker to avoid CORS).  [oai_citation:2‡Gist](https://gist.github.com/akeaswaran/b48b02f1c94f873c6655e7129910fc3b?permalink_comment_id=4704846&utm_source=chatgpt.com)
+      Tip: If something breaks, open the Debug section at the bottom to see what the Worker returned.
     </div>
   </div>
 
@@ -94,12 +98,17 @@
           <div class="small">Pick a team on the left.</div>
         </div>
       </div>
+
+      <details id="debugWrap" style="display:none;">
+        <summary>Debug (Worker response)</summary>
+        <pre id="debugPre"></pre>
+      </details>
     </div>
   </div>
 </div>
 
 <script>
-  // 🔥 SET THIS to your deployed Cloudflare Worker URL:
+  // ✅ SET THIS TO YOUR REAL WORKER URL
   const WORKER_BASE = "https://washington-sports-proxy.wright-j-andrew.workers.dev";
 
   const TEAMS = [
@@ -118,6 +127,8 @@
   const teamMeta = el("teamMeta");
   const tabs = el("tabs");
   const view = el("view");
+  const debugWrap = el("debugWrap");
+  const debugPre = el("debugPre");
 
   let selected = null;
   let cache = null;
@@ -167,16 +178,25 @@
   });
 
   async function getTeamBundle(team){
-    const url = `${WORKER_BASE}/team?league=${encodeURIComponent(team.league)}&abbr=${encodeURIComponent(team.abbr)}`;
+    // cache-buster to avoid stale deployments
+    const url = `${WORKER_BASE}/team?league=${encodeURIComponent(team.league)}&abbr=${encodeURIComponent(team.abbr)}&t=${Date.now()}`;
     const res = await fetch(url, { cache:"no-store" });
-    const data = await res.json();
-    if(!res.ok || data.error) throw new Error(data.error || "Fetch failed");
+
+    // Could be non-JSON if worker misconfigured; handle safely
+    const text = await res.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch { data = { error: "Non-JSON response from Worker", raw: text }; }
+
+    // show debug always when something fails
+    debugWrap.style.display = "block";
+    debugPre.textContent = JSON.stringify(data, null, 2);
+
+    if(!res.ok || data?.error) throw new Error(data?.error || ("HTTP " + res.status));
     return data;
   }
 
   // --- ESPN schedule parsing helpers ---
   function extractScheduleEvents(scheduleJson){
-    // ESPN schedule commonly has an "events" array. We defensively check a few shapes.
     return scheduleJson?.events
         || scheduleJson?.schedule?.[0]?.events
         || scheduleJson?.schedule?.events
@@ -184,27 +204,31 @@
   }
 
   function normalizeEvent(e){
-    const name = e?.name || e?.shortName || e?.matchup || e?.summary || "Game";
-    const date = e?.date || e?.competitions?.[0]?.date || e?.startDate || null;
+    const comp = e?.competitions?.[0] || null;
+    const statusObj = comp?.status?.type || e?.status?.type || {};
+    const state = (statusObj?.state || statusObj?.name || "").toLowerCase();
+    const statusDesc = statusObj?.description || e?.status?.type?.description || "—";
 
-    const comp = e?.competitions?.[0];
-    const status = comp?.status?.type?.description || e?.status?.type?.description || "—";
-    const completed = !!(comp?.status?.type?.completed || e?.status?.type?.completed);
+    const completed = !!statusObj?.completed
+      || state === "post"
+      || state === "final";
+
+    const date = e?.date || comp?.date || e?.startDate || null;
 
     const competitors = comp?.competitors || e?.competitors || [];
     let home = competitors.find(c=>c.homeAway==="home");
     let away = competitors.find(c=>c.homeAway==="away");
-
-    // fallback: if not labeled, use order
     if(!home && competitors.length>=2){ home = competitors[0]; away = competitors[1]; }
-
-    const hs = home?.score ?? comp?.competitors?.[0]?.score ?? null;
-    const as = away?.score ?? comp?.competitors?.[1]?.score ?? null;
 
     const homeName = home?.team?.displayName || home?.team?.shortDisplayName || "";
     const awayName = away?.team?.displayName || away?.team?.shortDisplayName || "";
 
-    return { name, date, status, completed, homeName, awayName, hs, as };
+    const hs = home?.score ?? null;
+    const as = away?.score ?? null;
+
+    const name = e?.name || e?.shortName || (awayName && homeName ? `${awayName} @ ${homeName}` : "Game");
+
+    return { name, date, status: statusDesc, completed, homeName, awayName, hs, as, inProgress: !!statusObj?.inProgress };
   }
 
   function getLatestAndNext(scheduleJson){
@@ -212,8 +236,8 @@
     raw.sort((a,b)=> new Date(a.date) - new Date(b.date));
 
     const now = Date.now();
-    const past = raw.filter(x=> x.completed || new Date(x.date).getTime() < now);
-    const future = raw.filter(x=> !x.completed && new Date(x.date).getTime() >= now);
+    const past = raw.filter(x => x.completed || new Date(x.date).getTime() < now);
+    const future = raw.filter(x => !x.completed && new Date(x.date).getTime() >= now);
 
     const latest = past.length ? past[past.length-1] : null;
     const next = future.length ? future[0] : null;
@@ -224,31 +248,22 @@
   // --- Live scoreboard parsing ---
   function getLiveGames(scoreboardJson, teamId){
     const events = scoreboardJson?.events || [];
-    const live = [];
-    for (const e of events){
+    const out = [];
+    for(const e of events){
       const comp = e?.competitions?.[0];
       const competitors = comp?.competitors || [];
       const hasTeam = competitors.some(c => String(c?.team?.id) === String(teamId));
       if(!hasTeam) continue;
-
-      const status = comp?.status?.type?.description || e?.status?.type?.description || "—";
-      const inProgress = !!comp?.status?.type?.inProgress;
-
-      // We show both in-progress and today’s final games, but prioritize in-progress
-      const n = normalizeEvent(e);
-      n.inProgress = inProgress;
-      live.push(n);
+      out.push(normalizeEvent(e));
     }
-    live.sort((a,b)=> (b.inProgress===a.inProgress)? (new Date(b.date)-new Date(a.date)) : (b.inProgress - a.inProgress));
-    return live.slice(0,5);
+    out.sort((a,b)=> (b.inProgress===a.inProgress) ? (new Date(b.date)-new Date(a.date)) : (b.inProgress - a.inProgress));
+    return out.slice(0,6);
   }
 
   function renderRows(items, rightBuilder){
-    if(!items.length){
-      return `<div class="small">No data found.</div>`;
-    }
+    if(!items || !items.length) return `<div class="small">No data found.</div>`;
     return items.map(it=>{
-      const title = it.name || `${it.awayName} @ ${it.homeName}`;
+      const title = it.name || "Game";
       const sub = it.date ? `${fmtDate(it.date)} • ${it.status}` : it.status;
       const right = rightBuilder ? rightBuilder(it) : "";
       return `
@@ -264,133 +279,114 @@
   }
 
   function renderOverview(){
-    const { latest, next } = getLatestAndNext(cache.schedule);
-    const liveGames = getLiveGames(cache.scoreboard, cache.meta.teamId);
+    const schedule = cache?.schedule || {};
+    const scoreboard = cache?.scoreboard || {};
+    const meta = cache?.meta || {};
 
-    const liveCard = `
-      <div class="card">
-        <h3>Live Now / Today</h3>
-        ${liveGames.length
-          ? renderRows(liveGames, (g)=> `<div class="score">${escapeHtml(g.hs ?? "—")} : ${escapeHtml(g.as ?? "—")}</div>`)
-          : `<div class="small">No live/today game found.</div>`}
-      </div>
-    `;
-
-    const latestCard = `
-      <div class="card">
-        <h3>Most Recent Game</h3>
-        ${latest
-          ? renderRows([latest], (g)=> `<div class="score">${escapeHtml(g.hs ?? "—")} : ${escapeHtml(g.as ?? "—")}</div>`)
-          : `<div class="small">No completed game found.</div>`}
-      </div>
-    `;
-
-    const nextCard = `
-      <div class="card">
-        <h3>Next Game</h3>
-        ${next
-          ? renderRows([next], ()=> ``)
-          : `<div class="small">No upcoming game found.</div>`}
-      </div>
-    `;
+    const { latest, next } = getLatestAndNext(schedule);
+    const liveGames = getLiveGames(scoreboard, meta.teamId);
 
     view.innerHTML = `
       <div class="grid">
-        ${liveCard}
-        ${latestCard}
+        <div class="card">
+          <h3>Live Now / Today</h3>
+          ${liveGames.length ? renderRows(liveGames, g=>`<div class="score">${escapeHtml(g.hs ?? "—")} : ${escapeHtml(g.as ?? "—")}</div>`) : `<div class="small">No live/today game found.</div>`}
+        </div>
+        <div class="card">
+          <h3>Most Recent Game</h3>
+          ${latest ? renderRows([latest], g=>`<div class="score">${escapeHtml(g.hs ?? "—")} : ${escapeHtml(g.as ?? "—")}</div>`) : `<div class="small">No completed game found.</div>`}
+        </div>
       </div>
-      <div style="margin-top:12px;">
-        ${nextCard}
+      <div style="margin-top:12px;" class="card">
+        <h3>Next Game</h3>
+        ${next ? renderRows([next]) : `<div class="small">No upcoming game found.</div>`}
       </div>
     `;
   }
 
   function renderRoster(){
-    const athletes = cache.roster?.athletes || cache.roster?.team?.athletes || [];
+    const roster = cache?.roster || {};
+    const groups = roster?.athletes || roster?.team?.athletes || [];
     const flat = [];
 
-    // ESPN roster sometimes groups by position categories
-    if (Array.isArray(athletes)) {
-      // could be groups with items
-      for (const group of athletes){
-        if (group?.items && Array.isArray(group.items)){
-          for (const p of group.items) flat.push(p);
+    if(Array.isArray(groups)){
+      for(const g of groups){
+        if(g?.items && Array.isArray(g.items)){
+          for(const p of g.items) flat.push(p);
         }
       }
     }
 
-    const players = flat.length ? flat : (cache.roster?.athletes || []);
-    if (!players || !players.length){
+    const players = flat.length ? flat : (Array.isArray(roster?.athletes) ? roster.athletes : []);
+    if(!players.length){
       view.innerHTML = `<div class="card"><h3>Roster</h3><div class="small">Roster unavailable.</div></div>`;
       return;
     }
 
-    const rows = players.slice(0,60).map(p=>{
-      const n = p?.fullName || p?.displayName || "—";
-      const pos = p?.position?.abbreviation || p?.position?.name || "—";
-      const jersey = p?.jersey ? `#${p.jersey}` : "";
-      return `
-        <div class="row">
-          <div>
-            <div class="a">${escapeHtml(n)} <span class="b">${escapeHtml(jersey)}</span></div>
-            <div class="b">${escapeHtml(pos)}</div>
+    view.innerHTML = `<div class="card"><h3>Roster</h3>${
+      players.slice(0,70).map(p=>{
+        const n = p?.fullName || p?.displayName || "—";
+        const pos = p?.position?.abbreviation || p?.position?.name || "—";
+        const jersey = p?.jersey ? `#${p.jersey}` : "";
+        return `
+          <div class="row">
+            <div>
+              <div class="a">${escapeHtml(n)} <span class="b">${escapeHtml(jersey)}</span></div>
+              <div class="b">${escapeHtml(pos)}</div>
+            </div>
+            <div class="right">${escapeHtml(p?.experience?.years != null ? (p.experience.years + " yrs") : "")}</div>
           </div>
-          <div class="right">${escapeHtml(p?.experience?.years != null ? (p.experience.years + " yrs") : "")}</div>
-        </div>
-      `;
-    }).join("");
-
-    view.innerHTML = `<div class="card"><h3>Roster</h3>${rows}</div>`;
+        `;
+      }).join("")
+    }</div>`;
   }
 
   function renderNews(){
-    const articles = cache.news?.articles || cache.news?.headlines || [];
+    const news = cache?.news || {};
+    const articles = news?.articles || news?.headlines || [];
     if(!articles.length){
       view.innerHTML = `<div class="card"><h3>News</h3><div class="small">No news found.</div></div>`;
       return;
     }
-    const rows = articles.slice(0,10).map(a=>{
-      const title = a?.headline || a?.title || "—";
-      const link = a?.links?.web?.href || a?.links?.api?.href || a?.link || "";
-      const when = a?.published || a?.lastModified || "";
-      return `
-        <div class="row">
-          <div>
-            <div class="a">${escapeHtml(title)}</div>
-            <div class="b">${when ? escapeHtml(fmtDate(when)) : ""}</div>
-          </div>
-          <div class="right">${link ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener">Open</a>` : ""}</div>
-        </div>
-      `;
-    }).join("");
 
-    view.innerHTML = `<div class="card"><h3>Top News</h3>${rows}</div>`;
+    view.innerHTML = `<div class="card"><h3>Top News</h3>${
+      articles.slice(0,12).map(a=>{
+        const title = a?.headline || a?.title || "—";
+        const link = a?.links?.web?.href || a?.links?.api?.href || a?.link || "";
+        const when = a?.published || a?.lastModified || "";
+        return `
+          <div class="row">
+            <div>
+              <div class="a">${escapeHtml(title)}</div>
+              <div class="b">${when ? escapeHtml(fmtDate(when)) : ""}</div>
+            </div>
+            <div class="right">${link ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener">Open</a>` : ""}</div>
+          </div>
+        `;
+      }).join("")
+    }</div>`;
   }
 
   function renderSchedule(){
-    const { latest, next } = getLatestAndNext(cache.schedule);
+    const { latest, next } = getLatestAndNext(cache?.schedule || {});
     view.innerHTML = `
       <div class="card">
         <h3>Latest Completed</h3>
-        ${latest ? renderRows([latest], g=> `<div class="score">${escapeHtml(g.hs ?? "—")} : ${escapeHtml(g.as ?? "—")}</div>`)
-                : `<div class="small">No completed game found.</div>`}
+        ${latest ? renderRows([latest], g=>`<div class="score">${escapeHtml(g.hs ?? "—")} : ${escapeHtml(g.as ?? "—")}</div>`) : `<div class="small">No completed game found.</div>`}
       </div>
       <div style="margin-top:12px;" class="card">
         <h3>Next Upcoming</h3>
-        ${next ? renderRows([next])
-              : `<div class="small">No upcoming game found.</div>`}
+        ${next ? renderRows([next]) : `<div class="small">No upcoming game found.</div>`}
       </div>
     `;
   }
 
   function renderLive(){
-    const liveGames = getLiveGames(cache.scoreboard, cache.meta.teamId);
+    const liveGames = getLiveGames(cache?.scoreboard || {}, cache?.meta?.teamId);
     view.innerHTML = `
       <div class="card">
         <h3>Live Now / Today</h3>
-        ${liveGames.length
-          ? renderRows(liveGames, (g)=> `<div class="score">${escapeHtml(g.hs ?? "—")} : ${escapeHtml(g.as ?? "—")}</div>`)
-          : `<div class="small">No live/today game found.</div>`}
+        ${liveGames.length ? renderRows(liveGames, g=>`<div class="score">${escapeHtml(g.hs ?? "—")} : ${escapeHtml(g.as ?? "—")}</div>`) : `<div class="small">No live/today game found.</div>`}
       </div>
     `;
   }
@@ -401,6 +397,7 @@
     if(tab==="schedule") return renderSchedule();
     if(tab==="roster") return renderRoster();
     if(tab==="news") return renderNews();
+    renderOverview();
   }
 
   async function selectTeam(team){
@@ -410,31 +407,37 @@
     tabs.style.display = "flex";
     setActiveTab("overview");
 
-    // Reset hero
     teamName.textContent = team.name;
     teamMeta.textContent = `${team.league.toUpperCase()} • Loading…`;
     logo.textContent = "⏳";
     setPill("Loading…", true);
     view.innerHTML = `<div class="card"><h3>Loading</h3><div class="small">Fetching ESPN data…</div></div>`;
+    debugWrap.style.display = "none";
+    debugPre.textContent = "";
 
-    try {
+    try{
       const data = await getTeamBundle(team);
+
+      // Minimal shape validation
+      if(!data || typeof data !== "object") throw new Error("Worker returned empty/invalid data");
+      if(!data.meta) throw new Error("Worker response missing 'meta' (open Debug below)");
+
       cache = data;
 
-      // hero
-      const logoUrl = data.meta.logo;
-      if (logoUrl) logo.innerHTML = `<img src="${escapeHtml(logoUrl)}" alt="logo">`;
+      const logoUrl = data?.meta?.logo || "";
+      if(logoUrl) logo.innerHTML = `<img src="${escapeHtml(logoUrl)}" alt="logo">`;
       else logo.textContent = "🏛️";
 
-      teamName.textContent = data.meta.teamName || team.name;
-      teamMeta.textContent = `${team.league.toUpperCase()} • Team ID ${data.meta.teamId}`;
+      teamName.textContent = data?.meta?.teamName || team.name;
+      teamMeta.textContent = `${team.league.toUpperCase()} • Team ID ${data?.meta?.teamId ?? "—"}`;
       setPill("Loaded", true);
 
       renderOverview();
-    } catch (e) {
+    } catch(e){
       setPill("Error", false);
       teamMeta.textContent = `Load failed: ${e}`;
-      view.innerHTML = `<div class="card"><h3>Error</h3><div class="small">${escapeHtml(String(e))}</div></div>`;
+      view.innerHTML = `<div class="card"><h3>Error</h3><div class="small">${escapeHtml(String(e))}</div><div class="small" style="margin-top:8px;">Open Debug below to see the Worker response.</div></div>`;
+      debugWrap.style.display = "block";
     }
   }
 
