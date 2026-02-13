@@ -6,12 +6,62 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-body { font-family: -apple-system, Arial; margin:0; background:#f4f6f8; }
-header { background:#0c2340; color:white; padding:20px; font-size:24px; }
-.container { padding:20px; }
-.team { background:white; padding:15px; margin-bottom:10px; border-radius:10px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.1); }
-.section { background:white; padding:20px; margin-top:15px; border-radius:10px; }
-button { padding:8px 14px; margin-bottom:10px; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, Arial;
+    margin: 0;
+    background: #f4f6f8;
+}
+
+header {
+    background: #0c2340;
+    color: white;
+    padding: 20px;
+    font-size: 26px;
+    font-weight: bold;
+}
+
+.container {
+    padding: 20px;
+    max-width: 900px;
+    margin: auto;
+}
+
+.team {
+    background: white;
+    padding: 16px;
+    margin-bottom: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,.1);
+    font-size: 18px;
+}
+
+.team:hover {
+    background: #eef3f8;
+}
+
+.section {
+    background: white;
+    padding: 20px;
+    margin-top: 15px;
+    border-radius: 10px;
+}
+
+button {
+    padding: 10px 16px;
+    margin-bottom: 15px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.game {
+    padding: 6px 0;
+}
+
+.player {
+    padding: 4px 0;
+    font-size: 14px;
+}
 </style>
 </head>
 
@@ -21,22 +71,28 @@ button { padding:8px 14px; margin-bottom:10px; }
 
 <div class="container" id="menu">
 
-<div class="team" onclick="openTeam(134920)">🏈 Washington Commanders</div>
-<div class="team" onclick="openTeam(134880)">🏀 Washington Wizards</div>
-<div class="team" onclick="openTeam(134861)">🏒 Washington Capitals</div>
-<div class="team" onclick="openTeam(134894)">⚾ Washington Nationals</div>
-<div class="team" onclick="openTeam(133604)">⚽ DC United</div>
+<div class="team" onclick="openTeam(134937)">🏈 Washington Commanders</div>
+<div class="team" onclick="openTeam(134884)">🏀 Washington Wizards</div>
+<div class="team" onclick="openTeam(134845)">🏒 Washington Capitals</div>
+<div class="team" onclick="openTeam(135281)">⚾ Washington Nationals</div>
+<div class="team" onclick="openTeam(134145)">⚽ DC United</div>
 
 </div>
 
 <div class="container" id="teamView" style="display:none">
 
 <button onclick="goBack()">← Back</button>
+
 <h2 id="teamName"></h2>
 
 <div class="section">
 <h3>Upcoming Games</h3>
 <div id="schedule">Loading...</div>
+</div>
+
+<div class="section">
+<h3>Recent Results</h3>
+<div id="results">Loading...</div>
 </div>
 
 <div class="section">
@@ -49,65 +105,81 @@ button { padding:8px 14px; margin-bottom:10px; }
 <script>
 
 function goBack(){
-document.getElementById("teamView").style.display="none";
-document.getElementById("menu").style.display="block";
+    document.getElementById("teamView").style.display="none";
+    document.getElementById("menu").style.display="block";
 }
 
 async function openTeam(teamId){
 
-document.getElementById("menu").style.display="none";
-document.getElementById("teamView").style.display="block";
+    document.getElementById("menu").style.display="none";
+    document.getElementById("teamView").style.display="block";
 
-loadTeamInfo(teamId);
-loadSchedule(teamId);
-loadRoster(teamId);
-
+    loadTeamInfo(teamId);
+    loadSchedule(teamId);
+    loadResults(teamId);
+    loadRoster(teamId);
 }
 
 async function loadTeamInfo(teamId){
 
-let res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookupteam.php?id=${teamId}`);
-let data = await res.json();
-document.getElementById("teamName").innerText = data.teams[0].strTeam;
+    let res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookupteam.php?id=${teamId}`);
+    let data = await res.json();
 
+    document.getElementById("teamName").innerText = data.teams[0].strTeam;
 }
 
 async function loadSchedule(teamId){
 
-let res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventsnext.php?id=${teamId}`);
-let data = await res.json();
+    let res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventsnext.php?id=${teamId}`);
+    let data = await res.json();
 
-if(!data.events){
-document.getElementById("schedule").innerText="No upcoming games found.";
-return;
+    if(!data.events){
+        document.getElementById("schedule").innerText="No upcoming games found.";
+        return;
+    }
+
+    let html="";
+    data.events.slice(0,5).forEach(event=>{
+        html+=`<div class="game">${event.strEvent} — ${event.dateEvent}</div>`;
+    });
+
+    document.getElementById("schedule").innerHTML=html;
 }
 
-let html="";
-data.events.slice(0,5).forEach(event=>{
-html+=`<div>${event.strEvent} — ${event.dateEvent}</div>`;
-});
+async function loadResults(teamId){
 
-document.getElementById("schedule").innerHTML=html;
+    let res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventslast.php?id=${teamId}`);
+    let data = await res.json();
 
+    if(!data.results){
+        document.getElementById("results").innerText="No recent results.";
+        return;
+    }
+
+    let html="";
+    data.results.slice(0,5).forEach(game=>{
+        html+=`<div class="game">${game.strEvent} — ${game.intHomeScore} : ${game.intAwayScore}</div>`;
+    });
+
+    document.getElementById("results").innerHTML=html;
 }
 
 async function loadRoster(teamId){
 
-let res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookup_all_players.php?id=${teamId}`);
-let data = await res.json();
+    let res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookup_all_players.php?id=${teamId}`);
+    let data = await res.json();
 
-if(!data.player){
-document.getElementById("roster").innerText="Roster unavailable.";
-return;
-}
+    if(!data.player){
+        document.getElementById("roster").innerText="Roster unavailable.";
+        return;
+    }
 
-let html="";
-data.player.slice(0,20).forEach(player=>{
-html+=`<div>${player.strPlayer} (${player.strPosition || ""})</div>`;
-});
+    let html="";
+    data.player.slice(0,25).forEach(player=>{
+        html+=`<div class="player">${player.strPlayer} (${player.strPosition || "—"})</div>`;
+    });
 
-document.getElementById("roster").innerHTML=html;
-
+    document.getElementById("roster").innerHTML=html;
 }
 
 </script>
